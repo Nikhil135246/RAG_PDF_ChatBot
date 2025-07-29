@@ -4,8 +4,42 @@ import streamlit as st
 from langchain.text_splitter import CharacterTextSplitter
 from PyPDF2 import PdfReader  
 from langchain_community.vectorstores import FAISS
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain.embeddings.base import Embeddings
 from openai import OpenAI
+
+# Custom GitHub Models Embedding Class
+class GitHubEmbeddings(Embeddings):
+    def __init__(self):
+        load_dotenv()
+        self.client = OpenAI(
+            base_url="https://models.github.ai/inference",
+            api_key=os.environ["OPENAI_API_KEY"],  # Your GitHub token
+        )
+        self.model_name = "openai/text-embedding-3-small"
+    
+    def embed_documents(self, texts):
+        """Embed multiple documents"""
+        try:
+            response = self.client.embeddings.create(
+                input=texts,
+                model=self.model_name,
+            )
+            return [item.embedding for item in response.data]
+        except Exception as e:
+            st.error(f"GitHub embedding error: {e}")
+            return []
+    
+    def embed_query(self, text):
+        """Embed a single query"""
+        try:
+            response = self.client.embeddings.create(
+                input=[text],
+                model=self.model_name,
+            )
+            return response.data[0].embedding
+        except Exception as e:
+            st.error(f"GitHub embedding error: {e}")
+            return []
 
 def main():
     load_dotenv()
@@ -41,15 +75,26 @@ def main():
             with st.expander(f"Chunk {i+1}"):
                 st.write(chunk)
 
-        # Embed the chunks using FREE HuggingFace embeddings
+        # Choose embedding method
+        st.write("**🤖 Choose Embedding Method:**")
+        embedding_choice = st.radio(
+            "Select embedding service:",
+            ["GitHub Models (OpenAI)", "HuggingFace (Local)"]
+        )
+        
         try:
-            st.write("🔄 Creating embeddings with HuggingFace (this may take a moment for first download)...")
-            
-            # Use free HuggingFace embeddings - much better than hash-based!
-            embeddings = HuggingFaceEmbeddings(
-                model_name="sentence-transformers/all-MiniLM-L6-v2",
-                model_kwargs={'device': 'cpu'}  # Use CPU (works on all machines)
-            )
+            if embedding_choice == "GitHub Models (OpenAI)":
+                st.write("🔄 Creating embeddings with GitHub Models...")
+                embeddings = GitHubEmbeddings()
+                embedding_info = "GitHub Models - OpenAI text-embedding-3-small (1536 dims)"
+            else:
+                st.write("🔄 Creating embeddings with HuggingFace...")
+                from langchain_community.embeddings import HuggingFaceEmbeddings
+                embeddings = HuggingFaceEmbeddings(
+                    model_name="sentence-transformers/all-MiniLM-L6-v2",
+                    model_kwargs={'device': 'cpu'}
+                )
+                embedding_info = "HuggingFace all-MiniLM-L6-v2 (384 dims)"
             
             knowledge_base = FAISS.from_texts(chunks, embeddings) 
             st.write("✅ Knowledge base created successfully!")
@@ -59,7 +104,7 @@ def main():
             st.write(f"- **Total vectors stored:** {knowledge_base.index.ntotal}")
             st.write(f"- **Vector dimension:** {knowledge_base.index.d}")
             st.write(f"- **Number of chunks:** {len(chunks)}")
-            st.write("- **Embedding model:** HuggingFace all-MiniLM-L6-v2 (FREE & High Quality)")
+            st.write(f"- **Embedding model:** {embedding_info}")
             
             # Test similarity search
             st.write("**🔍 Test Your Knowledge Base:**")
@@ -77,10 +122,12 @@ def main():
             
         except Exception as e:
             st.error(f"❌ Error: {str(e)}")
-            st.write("**If you see a download error:**")
-            st.write("- Make sure you have internet connection")
-            st.write("- The model downloads automatically on first use")
-            st.write("- Try restarting the app")
+            st.write("**Troubleshooting:**")
+            if "GitHub" in str(e):
+                st.write("- Check your GitHub token in .env file")
+                st.write("- Make sure you have internet connection")
+            else:
+                st.write("- Try switching to the other embedding method")
 
 if __name__ == "__main__":
     main()
