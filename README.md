@@ -64,7 +64,7 @@ A powerful, user-friendly chatbot that lets you ask questions about your PDF doc
 
 ---
 
-## 🧠 How It Works
+##  How It Works
 
 1. **Upload PDF:** The app extracts and splits the text into chunks.
 2. **Embeddings:** Each chunk is converted into a vector using your selected embedding model.
@@ -74,19 +74,19 @@ A powerful, user-friendly chatbot that lets you ask questions about your PDF doc
 
 ---
 
-## 📚 Example
+##  Example
 
 ![RAG Workflow](https://raw.githubusercontent.com/Nikhil135246/RAG_PDF_ChatBot/main/assets/rag_workflow.png)
 
 ---
 
-## 📝 License
+##  License
 
 This project is licensed under the MIT License.
 
 ---
 
-## 🙏 Acknowledgements
+##  Acknowledgements
 
 - [LangChain](https://github.com/langchain-ai/langchain)
 - [OpenAI](https://openai.com/)
@@ -96,4 +96,4 @@ This project is licensed under the MIT License.
 
 ---
 
-> Made with
+>Made with ❤️ by [Nikhil135246](https://github.com/Nikhil135246)
