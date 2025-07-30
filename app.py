@@ -6,6 +6,8 @@ from PyPDF2 import PdfReader
 from langchain_community.vectorstores import FAISS
 from langchain.embeddings.base import Embeddings
 from openai import OpenAI
+from langchain.chains.question_answering import load_qa_chain
+from langchain_openai import ChatOpenAI
 
 # Custom GitHub Models Embedding Class
 class GitHubEmbeddings(Embeddings):
@@ -113,21 +115,29 @@ def main():
                 try:
                     # Perform similarity search
                     docs = knowledge_base.similarity_search(test_query, k=3)
-                    st.write(f"**Found {len(docs)} most relevant chunks:**")
-                    for i, doc in enumerate(docs):
-                        with st.expander(f"📄 Relevant Chunk {i+1}"):
-                            st.write(doc.page_content)
-                except Exception as search_error:
-                    st.error(f"Search error: {search_error}")
-            
+                    llm = ChatOpenAI(
+                        openai_api_base="https://models.github.ai/inference",
+                        openai_api_key=os.environ["OPENAI_API_KEY"],
+                        model="openai/gpt-4o-mini"
+                    )
+                    chain = load_qa_chain(llm, chain_type="stuff")  # <-- FIXED HERE
+                    response = chain.run(input_documents=docs, question=test_query)
+                    st.write("**🔎 Search Results:**")
+                    st.write(response)
+                except Exception as e:
+                    st.error(f"❌ Error: {str(e)}")
+                    # Fallback: show raw search results
+                    try:
+                        docs = knowledge_base.similarity_search(test_query, k=3)
+                        st.write("**📄 Found relevant chunks:**")
+                        for i, doc in enumerate(docs):
+                            with st.expander(f"Relevant Chunk {i+1}"):
+                                st.write(doc.page_content)
+                    except:
+                        st.error("Failed to search knowledge base")
+        
         except Exception as e:
-            st.error(f"❌ Error: {str(e)}")
-            st.write("**Troubleshooting:**")
-            if "GitHub" in str(e):
-                st.write("- Check your GitHub token in .env file")
-                st.write("- Make sure you have internet connection")
-            else:
-                st.write("- Try switching to the other embedding method")
+            st.error(f"❌ Error creating knowledge base: {str(e)}")
 
 if __name__ == "__main__":
     main()
